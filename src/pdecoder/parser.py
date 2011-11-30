@@ -67,7 +67,7 @@
         >=
         <=
 '''
-from utils import versa_split, totype
+from utils import xversa_split, xtotype, xop
 
 Op_Tokens=[
         "=", ">", "<", ">=", "<="
@@ -86,18 +86,14 @@ def parse(raw_text):
     
     @return list of tokens
     """
-    raw_tokens=versa_split(raw_text, tokens=Op_Tokens+Group_Tokens)
-
-    tokens=map(totype, raw_tokens)
-    
-    def op(x):
-        t, v=x
-        if t is None:
-            if v in Op_Tokens+Group_Tokens:
-                return ("op", v)
-        return x
-    
-    tokens=map(op, tokens)
+    def _xop(tokens):
+        def _(x):
+            return xop(x, "op", tokens)
+        return _
+        
+    raw_tokens=xversa_split(raw_text, tokens=Op_Tokens+Group_Tokens)
+    tokens=map(xtotype, raw_tokens)    
+    tokens=map(_xop(Op_Tokens+Group_Tokens), tokens)
     
     return tokens
 

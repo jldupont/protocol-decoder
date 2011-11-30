@@ -52,6 +52,44 @@ def versa_split(txt, tokens=None):
     r2=filter(not_empty, r) 
     return r2
 
+def xversa_split(txt, tokens=[]):
+    
+    def assign_line_nbr(line, linenbr):
+        return (linenbr, line)
+        
+    _lines=txt.split("\n")
+    lines=map(assign_line_nbr, _lines, range(0, len(_lines)))
+    
+    def tokenize(x):
+        linenbr, line=x   
+        for token in tokens:
+            line=line.replace(token, " %s " % token)
+            
+        fragments=line.split(" ")
+        
+        def put_line_nbr(x):
+            return (linenbr, x)
+            
+        return map(put_line_nbr, fragments)
+
+    def extend(a, b):
+        return a+b
+    
+    _tokens=map(tokenize, lines)
+    tokens=reduce(extend, _tokens)
+    
+    def not_empty(x):
+        _, line=x
+        try:
+            return len(line)!=0
+        except:
+            s=line.strip()
+            return len(s)!=0
+        
+    r2=filter(not_empty, tokens) 
+    return r2
+
+
 def _check(regex, inp):
     s=inp.strip()
     r=regex.match(s)
@@ -61,7 +99,7 @@ def _check(regex, inp):
     return r.group()==s
     
 
-REGEX_PATTERN_ID=r'[a-z][a-z0-9]+'
+REGEX_PATTERN_ID=r'[_a-z][_a-z0-9]+'
 REGEX_ID=re.compile(REGEX_PATTERN_ID)
 
 def is_id(txt):
@@ -69,7 +107,9 @@ def is_id(txt):
     Determines if 'txt' is an "identifier" string
     
     @return Boolean
-    
+
+    >>> is_id("__len__")
+    True
     >>> is_id("allo")
     True
     >>> is_id("1allo")
@@ -155,6 +195,27 @@ def totype(x):
             pass
     return (None, x)
 
+def xtotype(x):
+    """
+    >>> xtotype((1, "a1234"))
+    (1, ('id', 'a1234'))
+    >>> xtotype((2, 1234))
+    (2, ('int', 1234))
+    >>> xtotype((3, "BX10101010")) # doctest:+ELLIPSIS
+    (3, ('binary', ...))
+    """
+    linenbr, line=x
+    r=totype(line)
+    return (linenbr, r)
+            
+def xop(x, otype, tokens):
+    linenbr, r=x
+    t, v=r
+    if t is None:
+        if v in tokens:
+            return (linenbr, (otype, v))
+    return x
+            
             
 if __name__=="__main__":
     import doctest
