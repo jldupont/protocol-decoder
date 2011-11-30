@@ -67,24 +67,15 @@
         >=
         <=
 '''
-from utils import versa_split
+from utils import versa_split, totype
 
 Op_Tokens=[
         "=", ">", "<", ">=", "<="
         ]
 
 Group_Tokens=[
-        "[", "]", "|", "(", ")", ","
+        "[", "]", "(", ")", ","
         ]
-
-DTypes={
-         "object_name": "string"
-        ,"operator": Op_Tokens
-        }
-
-StateGraph=[
-            [("object_name", "string"), ("op", "operator"),("match_pattern", "")] 
-            ]
 
 class ParserException(Exception):
     pass
@@ -95,9 +86,21 @@ def parse(raw_text):
     
     @return list of tokens
     """
-    s1=raw_text.split("\n")
+    raw_tokens=versa_split(raw_text, tokens=Op_Tokens+Group_Tokens)
+
+    tokens=map(totype, raw_tokens)
     
-    raw_tokens=versa_split(s1, tokens=Op_Tokens+Group_Tokens)
+    def op(x):
+        t, v=x
+        if t is None:
+            if v in Op_Tokens+Group_Tokens:
+                return ("op", v)
+        return x
     
+    tokens=map(op, tokens)
+    
+    return tokens
+
+        
     
     
