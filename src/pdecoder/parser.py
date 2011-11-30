@@ -8,7 +8,6 @@
         object#name.field#name op match-pattern
 
     match-pattern
-        number
         pattern
         [ tuples ]
     
@@ -68,6 +67,24 @@
         >=
         <=
 '''
+from utils import versa_split
+
+Op_Tokens=[
+        "=", ">", "<", ">=", "<="
+        ]
+
+Group_Tokens=[
+        "[", "]", "|", "(", ")", ","
+        ]
+
+DTypes={
+         "object_name": "string"
+        ,"operator": Op_Tokens
+        }
+
+StateGraph=[
+            [("object_name", "string"), ("op", "operator"),("match_pattern", "")] 
+            ]
 
 class ParserException(Exception):
     pass
@@ -80,6 +97,7 @@ def parse(raw_text):
     """
     s1=raw_text.split("\n")
     
+    raw_tokens=versa_split(s1, tokens=Op_Tokens+Group_Tokens)
     
     
     
