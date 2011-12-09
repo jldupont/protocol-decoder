@@ -4,6 +4,7 @@ Created on Nov 29, 2011
 @author: jldupont
 '''
 import re
+import types
 
 
 def flatten(x):
@@ -97,7 +98,21 @@ def _check(regex, inp):
         return False
     
     return r.group()==s
+
+
+REGEX_PATTERN_BIN=r'B[01]+'
+REGEX_BIN=re.compile(REGEX_PATTERN_BIN)
     
+def is_binary(txt):
+    """
+    >>> is_binary("B010101010")
+    True
+    >>> is_binary("B01010101X")
+    False
+    >>> is_binary("X010101010")
+    False
+    """
+    return _check(REGEX_BIN, txt)
 
 REGEX_PATTERN_ID=r'[_a-z][_a-z0-9]+'
 REGEX_ID=re.compile(REGEX_PATTERN_ID)
@@ -165,6 +180,40 @@ def is_hex_pattern(txt):
     """
     return _check(REGEX_HEX, txt)
 
+def versa_int(x):
+    """
+    >>> versa_int("0x1234")
+    (True, 4660)
+    >>> versa_int(0x1234)
+    (True, 4660)
+    >>> versa_int("0b110011")
+    (True, 51)
+    >>> versa_int(0b110011)
+    (True, 51)
+    >>> versa_int("99")
+    (True, 99)
+    >>> versa_int("1010101010")
+    (True, 1010101010)
+    >>> versa_int("aa")
+    (False, 'aa')
+    """
+    ### order is important!
+    if type(x)==types.IntType:
+        return (True, x)
+    
+    try:
+        return (True, int(x, 10))
+    except:
+        try:
+            return (True, int(x, 2))
+        except:
+            try:
+                if x.startswith("0x"):
+                    return (True, int(x, 16))
+            except:
+                pass
+    return (False, x)
+
 def totype(x):
     """
     >>> totype("a1234")
@@ -204,9 +253,9 @@ def xtotype(x):
     >>> xtotype((3, "BX10101010")) # doctest:+ELLIPSIS
     (3, ('binary', ...))
     """
-    linenbr, line=x
+    ctx, line=x
     r=totype(line)
-    return (linenbr, r)
+    return (ctx, r)
             
 def xop(x, otype, tokens):
     linenbr, r=x

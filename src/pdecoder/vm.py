@@ -3,6 +3,7 @@ Created on 2011-12-06
 
 @author: jldupont
 '''
+import utils
 
 def not_empty(x):
     try:
@@ -77,6 +78,7 @@ class base():
         ctx="start"
         linenbr=None
         try:
+            ## go through all "statements"
             for stsx in self.sts:
                 (linenbr, sts)=stsx
                 ctx="expecting 'function'"
@@ -84,8 +86,11 @@ class base():
                 ctx="evaluating parameters"
                 params=feval(sts)
                 ctx="calling function '%s'" % fn
-                (reg, result)=getattr(self, "fn_%s" % fn)(*params)
-                self.dic[reg]=result
+                code, msg=getattr(self, "fn_%s" % fn)(*params)
+                assert(code=="ok")
+                
+        except AssertionError:
+            return (code, ctx, linenbr, msg)
                 
         except Exception, e:
             return ("error", ctx, linenbr, e)
@@ -102,16 +107,49 @@ class VM(base):
         
     def fn_let(self, rreg, scalar):
         #print "let rreg(%s) scalar(%s)" % (rreg, scalar)
-        return (rreg, scalar)
+        self.dic[rreg]=scalar
+        return ("ok", None)
         
     def fn_length(self, rreg, reg):
         """
         Computes the length of the expected array pointed by 'reg'
         """
+        try:
+            data=self.dic[reg]
+        except:
+            return ("error", "reg'%s' not defined" % reg)
         
-        l=len(self.dic[reg])
+        try:
+            l=len(data)
+        except:
+            return ("error", "can't evaluate length of data in reg'%s'" % reg)
         #print "length rreg(%s) reg(%s) -> %s" % (rreg, reg, l)
-        return (rreg, l)
+        self.dic[rreg]=l
+        return ("ok", None)
+    
+    def fn_assert_equal(self, rreg, field_or_scalar):
+        """
+        Compare contents of register 'rreg' with 'field or scalar'
+        """
+        lvalue=self.dic.get(rreg, None)
+        if lvalue is None:
+            return ("error", "reg'%s' not defined" % rreg)
+        try:
+            ## scalar
+            code, rvalue=utils.versa_int(field_or_scalar)
+            assert(code==True)
+        except:
+            ## maybe a register
+            rvalue=self.dic.get(field_or_scalar, None)
+            if rvalue is None:
+                return ("error", "expecting a register or scalar, got '%s'" % field_or_scalar)
+            
+        result=(lvalue==rvalue)
+        if result:
+            return ("ok", None)
+        return ("assert_equal", "lvalue'%s' != rvalue'%s'" % (lvalue, rvalue))
+    
+        
       
         
         
@@ -126,6 +164,7 @@ if __name__=="__main__":
     let r1 [111, 222, 333]
     length r2 r1
     """
+
     
     def test1():
         """
@@ -143,6 +182,30 @@ if __name__=="__main__":
         [111, 222, 333]
         >>> print vm.dic["r2"]
         3
+        """
+
+    code3="""
+    let r1 0b1001
+    assert_equal r1 9
+    """
+
+    def test3():
+        """
+        >>> vm=VM(code3)
+        >>> vm.run(None)
+        ('ok', None, None, None)
+        """
+
+    code4="""
+    let r1 0b1001
+    assert_equal r1 8
+    """
+
+    def test4():
+        """
+        >>> vm=VM(code4)
+        >>> vm.run(None)
+        ('assert_equal', "calling function 'assert_equal'", 1, "lvalue'9' != rvalue'8'")
         """
     
     import doctest
