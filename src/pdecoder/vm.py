@@ -4,6 +4,7 @@ Created on 2011-12-06
 @author: jldupont
 '''
 import utils
+import types
 
 def not_empty(x):
     try:
@@ -71,6 +72,46 @@ class base():
 
         self.sts=filter(f_not_empty, _sts)        
         
+    def resolve(self, field_or_string_or_scalar):
+        """
+        Is it a "field" in the dic or a "scalar"?
+        """
+        try:
+            ## scalar
+            code, value=utils.versa_int(field_or_string_or_scalar)
+            assert(code==True)
+            return ("scalar", value)
+        except:
+            ## maybe a register
+            value=self.dic.get(field_or_string_or_scalar, None)
+            if value is not None:
+                return ("field", value)
+            
+        return ("unknown", field_or_string_or_scalar)
+    
+    def _common(self, fnname, fn, rreg, field_or_scalar):
+        try:
+            try:
+                lcode, lvalue=self.resolve(rreg)
+                assert(lcode=="field")
+            except AssertionError:
+                return ("error", "reg'%s' not defined" % rreg)
+            
+            try:
+                rcode, rvalue=self.resolve(field_or_scalar)
+                assert(rcode!="unknown")
+            except AssertionError:
+                return ("error", "expecting a register or scalar, got '%s'" % field_or_scalar)
+
+            try:            
+                return fn(rreg, lvalue, rvalue)
+            except Exception,e:
+                return ("error", "calling '%s' with lvalue=%s , rvalue=%s : %s" % (fnname, lvalue, rvalue, e))
+    
+        except Exception,e:
+            return ("error", "unknown error: %s" % e)    
+    
+        
     def run(self, data):
         self.data=data
         self.line_ptr=0
@@ -130,27 +171,48 @@ class VM(base):
     def fn_assert_equal(self, rreg, field_or_scalar):
         """
         Compare contents of register 'rreg' with 'field or scalar'
+        
+        'rreg' is supposed to be a field in the dic
         """
-        lvalue=self.dic.get(rreg, None)
-        if lvalue is None:
-            return ("error", "reg'%s' not defined" % rreg)
         try:
-            ## scalar
-            code, rvalue=utils.versa_int(field_or_scalar)
-            assert(code==True)
-        except:
-            ## maybe a register
-            rvalue=self.dic.get(field_or_scalar, None)
-            if rvalue is None:
+            try:
+                lcode, lvalue=self.resolve(rreg)
+                assert(lcode=="field")
+            except AssertionError:
+                return ("error", "reg'%s' not defined" % rreg)
+            
+            try:
+                rcode, rvalue=self.resolve(field_or_scalar)
+                assert(rcode!="unknown")
+            except AssertionError:
                 return ("error", "expecting a register or scalar, got '%s'" % field_or_scalar)
             
-        result=(lvalue==rvalue)
-        if result:
-            return ("ok", None)
-        return ("assert_equal", "lvalue'%s' != rvalue'%s'" % (lvalue, rvalue))
     
+            result=(lvalue==rvalue)
+            if result:
+                return ("ok", None)
+            return ("assert_equal", "lvalue'%s' != rvalue'%s'" % (lvalue, rvalue))
+        except Exception,e:
+            return ("error", "unknown error: %s" % e)    
         
-      
+    def fn_mask(self, rreg, field_or_scalar):
+        """
+        Perform a "bitwise AND"
+        """
+        def mask(rreg, reg_value, data):
+            if type(data)!=types.IntType:
+                return ("error", "expecting a scalar for the operard, got '%s'" % data)
+            self.dic[rreg]=(reg_value & data)
+            return ("ok", None)
+        
+        return self._common("mask", mask, rreg, field_or_scalar)
+        
+    def fn_load(self, rreg, field_or_scalar1, field_or_scalar2):
+        """
+        load  rreg  data_offset  byte_count
+        """
+        
+        
         
         
 if __name__=="__main__":
@@ -206,6 +268,21 @@ if __name__=="__main__":
         >>> vm=VM(code4)
         >>> vm.run(None)
         ('assert_equal', "calling function 'assert_equal'", 1, "lvalue'9' != rvalue'8'")
+        """
+
+    code5="""
+    let  r1 0b1101
+    let  r2 0b1100
+    mask r2 r1
+    """
+
+    def test5():
+        """
+        >>> vm=VM(code5)
+        >>> vm.run(None)
+        ('ok', None, None, None)
+        >>> print vm.dic["r2"]
+        12
         """
     
     import doctest
