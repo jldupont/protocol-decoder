@@ -6,12 +6,23 @@ Created on 2011-12-06
 import utils
 import types
 
-def not_empty(x):
+def not_empty(x, strict=False):
+    """
+    Determines if the list, tuple, dict or string is empty
+    """
     try:
+        ### applies to list, tuple, dict
         return len(x)!=0
     except:
-        s=x.strip()
-        return len(s)!=0
+        ### for strings
+        try:
+            s=x.strip()
+            return len(s)!=0
+        except:
+            if strict:
+                raise
+            return False
+
 
 def f_not_empty((_, x)):
     """
@@ -25,6 +36,10 @@ def f_not_empty((_, x)):
         return len(s)!=0
 
 def compose(fn_list):
+    """
+    Compose an object 'o' with a list of functions
+    Useful in 'map' application
+    """
     def c(o):
         for fn in fn_list:
             o=fn(o)
@@ -32,7 +47,10 @@ def compose(fn_list):
     return c
 
 def feval(l):
-    
+    """
+    Maps a list of strings to their native types
+    e.g. "[...]" -> [...] 
+    """
     def e(o):
         try:    return eval(o)
         except: return o
@@ -47,6 +65,13 @@ class base():
     """
     
     def __init__(self, code):
+        
+        def is_fn(x):
+            return x.startswith("fn_")
+        
+        def get_fns():
+            fns=filter(is_fn, self.__dict__)
+            return map(lambda x:x[3:], fns)
         
         def assign_line_nbr(line, linenbr):
             return (linenbr, line)
@@ -66,11 +91,12 @@ class base():
 
         ## since the separator is the space,
         ## we want to make sure that coma separated constructs
-        ## are treated as correctly
+        ## are treated as correctly:  compress ', ' to ','
         f=compose([comas, split])
         _sts=map(f, _lines)
 
-        self.sts=filter(f_not_empty, _sts)        
+        self.sts=filter(f_not_empty, _sts)
+        self.fns=get_fns()        
         
     def resolve(self, field_or_string_or_scalar):
         """
@@ -78,14 +104,20 @@ class base():
         """
         try:
             ## scalar
-            code, value=utils.versa_int(field_or_string_or_scalar)
+            maybe_scalar=field_or_string_or_scalar
+            code, value=utils.versa_int(maybe_scalar)
             assert(code==True)
             return ("scalar", value)
         except:
             ## maybe a register
-            value=self.dic.get(field_or_string_or_scalar, None)
+            maybe_reg=field_or_string_or_scalar
+            value=self.dic.get(maybe_reg, None)
             if value is not None:
                 return ("field", value)
+        
+        maybe_fn=field_or_string_or_scalar
+        if maybe_fn in self.fns:
+            return ("function", maybe_fn)
             
         return ("unknown", field_or_string_or_scalar)
     
