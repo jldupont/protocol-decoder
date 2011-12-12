@@ -135,8 +135,12 @@ def is_id(txt):
     True
     >>> is_id(" a1234llo1234 ")
     True
+    >>> is_id("$whatever")
+    False
     """
     return _check(REGEX_ID, txt)
+
+is_string=is_id
 
 REGEX_PATTERN_BINARY=r'B[X01]+'
 REGEX_BINARY=re.compile(REGEX_PATTERN_BINARY)
@@ -304,6 +308,33 @@ def compose(fn_list):
             o=fn(o)
         return o
     return c
+
+TREGEX=re.compile(r"""'(.*)'""")
+def ftype(x):
+    """
+    >>> ftype(123)
+    ('int', 123)
+    >>> ftype([1,2,3])
+    ('list', [1, 2, 3])
+    >>> ftype((1,2,3))
+    ('tuple', (1, 2, 3))
+    >>> ftype("__allo")
+    ('str', '__allo')
+    >>> ftype(True)
+    ('bool', True)
+    >>> ftype("$whatever")
+    ('str', '$whatever')
+    """
+    try:
+        _t=str(type(x))
+        t=TREGEX.findall(_t)
+        return (t[0].lower(), x)
+    except:
+        try:
+            assert(is_string(x))
+            return ("str", x)
+        except AssertionError:
+            return ("unknown", x)
 
 def feval(l):
     """

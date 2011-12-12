@@ -3,7 +3,7 @@ Created on 2011-12-06
 
 @author: jldupont
 '''
-from utils import compose, not_empty, f_not_empty, versa_int, feval, fsplit, partial
+from utils import compose, not_empty, f_not_empty, versa_int, feval, fsplit, partial, freplace
 import types
 
 
@@ -29,9 +29,6 @@ class base():
         def assign_line_nbr(line, linenbr):
             return (linenbr, line)
         
-        def comas((_, x)):
-            return (_, x.replace(", ", ","))
-        
         def tokenize(x):
             try:
                 code, value=versa_int(x) #maybe scalar
@@ -53,7 +50,7 @@ class base():
         ## since the separator is the space,
         ## we want to make sure that coma separated constructs
         ## are treated as correctly:  compress ', ' to ','
-        f=compose([comas, partial(fsplit, " ")])
+        f=compose([partial(freplace, ", ", ","), partial(fsplit, " ")])
         _sts=map(f, _lines)
 
         self.sts=filter(f_not_empty, _sts)
