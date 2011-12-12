@@ -3,59 +3,8 @@ Created on 2011-12-06
 
 @author: jldupont
 '''
-import utils
+from utils import compose, not_empty, f_not_empty, versa_int, feval, fsplit, partial
 import types
-
-def not_empty(x, strict=False):
-    """
-    Determines if the list, tuple, dict or string is empty
-    """
-    try:
-        ### applies to list, tuple, dict
-        return len(x)!=0
-    except:
-        ### for strings
-        try:
-            s=x.strip()
-            return len(s)!=0
-        except:
-            if strict:
-                raise
-            return False
-
-
-def f_not_empty((_, x)):
-    """
-    >>> print f_not_empty((0, []))
-    False
-    """
-    try:
-        return len(x)!=0
-    except:
-        s=x.strip()
-        return len(s)!=0
-
-def compose(fn_list):
-    """
-    Compose an object 'o' with a list of functions
-    Useful in 'map' application
-    """
-    def c(o):
-        for fn in fn_list:
-            o=fn(o)
-        return o
-    return c
-
-def feval(l):
-    """
-    Maps a list of strings to their native types
-    e.g. "[...]" -> [...] 
-    """
-    def e(o):
-        try:    return eval(o)
-        except: return o
-        
-    return map(e, l)
 
 
 class base():
@@ -66,37 +15,52 @@ class base():
     
     def __init__(self, code):
         
+        self.code=code
+        
+    def parse(self):
+        """ Parses the code
+        """
         def is_fn(x):
             return x.startswith("fn_")
         
-        def get_fns():
-            fns=filter(is_fn, self.__dict__)
-            return map(lambda x:x[3:], fns)
+        fns=filter(is_fn, self.__dict__)
+        self.fns=map(lambda x:x[3:], fns)
         
         def assign_line_nbr(line, linenbr):
             return (linenbr, line)
         
-        def split((line_nbr, raw)):
-            _=raw.split(" ")
-            tokens=filter(not_empty, _)
-            return (line_nbr, tokens)
-        
         def comas((_, x)):
             return (_, x.replace(", ", ","))
         
+        def tokenize(x):
+            try:
+                code, value=versa_int(x) #maybe scalar
+                assert(code==True)
+                return (code, value)
+            except AssertionError:
+                if x in self.fns:
+                    return ("function", x)
+            return ("unknown", x)
+        
+        def res((_, tokens)):
+            return (_, map(tokenize, tokens))
+        
         ## we want non-empty lines
-        _=code.split("\n")
+        _=self.code.split("\n")
         _=filter(not_empty, _)
         _lines=map(assign_line_nbr, _, range(0, len(_)))  ## (linenbr, line_data)
 
         ## since the separator is the space,
         ## we want to make sure that coma separated constructs
         ## are treated as correctly:  compress ', ' to ','
-        f=compose([comas, split])
+        f=compose([comas, partial(fsplit, " ")])
         _sts=map(f, _lines)
 
         self.sts=filter(f_not_empty, _sts)
-        self.fns=get_fns()        
+        
+        self.xsts=map(res, self.sts)
+                
+        return self
         
     def resolve(self, field_or_string_or_scalar):
         """
@@ -105,7 +69,7 @@ class base():
         try:
             ## scalar
             maybe_scalar=field_or_string_or_scalar
-            code, value=utils.versa_int(maybe_scalar)
+            code, value=versa_int(maybe_scalar)
             assert(code==True)
             return ("scalar", value)
         except:
@@ -233,7 +197,7 @@ class VM(base):
         """
         def mask(rreg, reg_value, data):
             if type(data)!=types.IntType:
-                return ("error", "expecting a scalar for the operard, got '%s'" % data)
+                return ("error", "expecting a scalar for the operand, got '%s'" % data)
             self.dic[rreg]=(reg_value & data)
             return ("ok", None)
         
@@ -263,6 +227,8 @@ if __name__=="__main__":
     def test1():
         """
         >>> vm=VM(code1)
+        >>> vm.parse() # doctest: +ELLIPSIS
+        <__main__.VM ...
         >>> print vm.sts
         [(0, ['f1', 'r1', 'a1', 'a2']), (1, ['f2', 'r2', 'b1', 'b2'])]
         """
@@ -270,6 +236,8 @@ if __name__=="__main__":
     def test2():
         """
         >>> vm=VM(code2)
+        >>> vm.parse() # doctest: +ELLIPSIS
+        <__main__.VM ...
         >>> vm.run(None)
         ('ok', None, None, None)
         >>> print vm.dic["r1"]
@@ -285,7 +253,7 @@ if __name__=="__main__":
 
     def test3():
         """
-        >>> vm=VM(code3)
+        >>> vm=VM(code3).parse()
         >>> vm.run(None)
         ('ok', None, None, None)
         """
@@ -297,7 +265,7 @@ if __name__=="__main__":
 
     def test4():
         """
-        >>> vm=VM(code4)
+        >>> vm=VM(code4).parse()
         >>> vm.run(None)
         ('assert_equal', "calling function 'assert_equal'", 1, "lvalue'9' != rvalue'8'")
         """
@@ -310,7 +278,8 @@ if __name__=="__main__":
 
     def test5():
         """
-        >>> vm=VM(code5)
+        >>> vm=VM(code5).parse()
+        ...
         >>> vm.run(None)
         ('ok', None, None, None)
         >>> print vm.dic["r2"]

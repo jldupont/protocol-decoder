@@ -265,7 +265,88 @@ def xop(x, otype, tokens):
             return (linenbr, (otype, v))
     return x
             
-            
+def not_empty(x, strict=False):
+    """
+    Determines if the list, tuple, dict or string is empty
+    """
+    try:
+        ### applies to list, tuple, dict
+        return len(x)!=0
+    except:
+        ### for strings
+        try:
+            s=x.strip()
+            return len(s)!=0
+        except:
+            if strict:
+                raise
+            return False
+
+
+def f_not_empty((_, x)):
+    """
+    >>> print f_not_empty((0, []))
+    False
+    """
+    try:
+        return len(x)!=0
+    except:
+        s=x.strip()
+        return len(s)!=0
+
+def compose(fn_list):
+    """
+    Compose an object 'o' with a list of functions
+    Useful in 'map' application
+    """
+    def c(o):
+        for fn in fn_list:
+            o=fn(o)
+        return o
+    return c
+
+def feval(l):
+    """
+    Maps a list of strings to their native types
+    e.g. "[...]" -> [...] 
+    """
+    def e(o):
+        try:    return eval(o)
+        except: return o
+        
+    return map(e, l)
+
+def fsplit(sep, (line_nbr, raw)):
+    """
+    >>> fsplit(" ", (0, "tk1 tk2 tk3"))
+    (0, ['tk1', 'tk2', 'tk3'])
+    >>> f=partial(fsplit, " ")
+    >>> f((0, "tk1 tk2"))
+    (0, ['tk1', 'tk2'])
+    """
+    _=raw.split(sep)
+    tokens=filter(not_empty, _)
+    return (line_nbr, tokens)
+
+def freplace(old, new, (_, x)):
+    return (_, x.replace(old, new))
+        
+
+def partial(fn, *pargs):
+    """
+    Partial Function builder
+    >>> f=lambda p1,p2: p1+p2
+    >>> pf=partial(f, 66)
+    >>> pf(44)
+    110
+    """
+    def _(*args):
+        plist=list(pargs)
+        plist.extend(list(args))
+        return fn(*plist)
+    return _
+
+       
 if __name__=="__main__":
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
